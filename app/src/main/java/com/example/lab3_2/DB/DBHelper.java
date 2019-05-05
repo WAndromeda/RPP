@@ -50,7 +50,6 @@ public class DBHelper extends SQLiteOpenHelper {
     @Override
     public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
         if (oldVersion == 1 && newVersion > oldVersion){
-            Log.i("NEW_VERS", Integer.toString(newVersion));
             oldVersion++;
             db.execSQL("CREATE TABLE IF NOT EXISTS Students2" +
                     "(id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT," +
@@ -59,25 +58,23 @@ public class DBHelper extends SQLiteOpenHelper {
                     "Patronymic TEXT," +
                     "Time REAL NOT NULL)"
             );
-            Cursor c = db.rawQuery("SELECT id, FIO, Time FROM Students", null);
+            Cursor c = db.rawQuery("SELECT id, " +
+                    "SUBSTR(FIO, 1, INSTR(FIO, ' ') - 1), " +
+                    "SUBSTR(SUBSTR(FIO, INSTR(FIO, ' ')+1), 1, INSTR(SUBSTR(FIO, INSTR(FIO, ' ')+1), ' ') - 1), " +
+                    "SUBSTR(SUBSTR(FIO, INSTR(FIO, ' ')+1), INSTR(SUBSTR(FIO, INSTR(FIO, ' ')+1), ' ')+1), " +
+                    "Time FROM Students", null);
             ContentValues cv = new ContentValues();
             if (c.moveToFirst()){
                 do {
                     cv.clear();
                     cv.put("id", c.getInt(0));
-                    String FIO = c.getString(1);
-                    cv.put("Surname", FIO.substring(0, FIO.indexOf(' ')));
-                    cv.put("Name", FIO.substring(FIO.indexOf(' ')+1, FIO.substring(FIO.indexOf(' ')+1).indexOf(' ') + FIO.indexOf(' ')+1));
-                    cv.put("Patronymic", FIO.substring(FIO.substring(FIO.indexOf(' ')+1).indexOf(' ') + FIO.indexOf(' ')+2));
-                    cv.put("Time", c.getLong(2));
+                    cv.put("Surname", c.getString(1));
+                    cv.put("Name", c.getString(2));
+                    cv.put("Patronymic", c.getString(3));
+                    cv.put("Time", c.getLong(4));
                     db.insert("Students2", null, cv);
                 }while (c.moveToNext());
             }
-            /*db.rawQuery("INSERT INTO Students2(id, Surname, Name, Patronymic, Time) SELECT id, " +
-                    "SUBSTR(FIO, 0, CHARINDEX(' ', FIO)), " +
-                    "SUBSTR(FIO, CHARINDEX(' ', FIO)+1, CHARINDEX(' ', SUBSTR(FIO, CHARINDEX(' ', FIO)+1))), " +
-                    "SUBSTR(FIO, CHARINDEX(' ', SUBSTR(FIO, CHARINDEX(' ', FIO)+1))+1), " +
-                    "Time FROM Students", null);*/
             db.execSQL("DROP TABLE IF EXISTS Students");
             db.execSQL("ALTER TABLE Students2 RENAME TO Students");
             c.close();
@@ -87,7 +84,6 @@ public class DBHelper extends SQLiteOpenHelper {
     @Override
     public void onDowngrade(SQLiteDatabase db, int oldVersion, int newVersion) {
         if (oldVersion == 2 && newVersion == 1){
-            Log.i("NEW_VERS", Integer.toString(newVersion));
             oldVersion++;
             db.execSQL("CREATE TABLE IF NOT EXISTS Students2" +
                     "(id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT," +
@@ -106,59 +102,10 @@ public class DBHelper extends SQLiteOpenHelper {
                     db.insert("Students2", null, cv);
                 }while (c.moveToNext());
             }
-            /*db.rawQuery("INSERT INTO Students2(id, Surname, Name, Patronymic, Time) SELECT id, " +
-                    "SUBSTR(FIO, 0, CHARINDEX(' ', FIO)), " +
-                    "SUBSTR(FIO, CHARINDEX(' ', FIO)+1, CHARINDEX(' ', SUBSTR(FIO, CHARINDEX(' ', FIO)+1))), " +
-                    "SUBSTR(FIO, CHARINDEX(' ', SUBSTR(FIO, CHARINDEX(' ', FIO)+1))+1), " +
-                    "Time FROM Students", null);*/
             db.execSQL("DROP TABLE IF EXISTS Students");
             db.execSQL("ALTER TABLE Students2 RENAME TO Students");
             c.close();
         }
-    }
-
-    public void setVersionOfDB(int newVersion){
-        SQLiteDatabase db = getWritableDatabase();
-        this.newVersion = newVersion;
-        db.rawQuery("UPDATE Version SET version = '"+ newVersion + "'", null).close();
-    }
-
-    public int getVersionOfDB(int newVersion){
-        SQLiteDatabase db = getWritableDatabase();
-        Cursor c = null;
-        try {
-            c = db.rawQuery("SELECT version FROM Version", null);
-        }catch (SQLException ex){
-            createVersionTable(newVersion, false);
-            c = db.rawQuery("SELECT version FROM Version", null);
-        }
-        if (c.moveToFirst()){
-            Log.i("YES", "");
-            newVersion = c.getInt(0);
-            this.newVersion = newVersion;
-        }else {
-            this.newVersion = newVersion;
-            createVersionTable(newVersion, true);
-        }
-        c.close();
-        return newVersion;
-    }
-
-    public void createVersionTable(int version, boolean needChange){
-        newVersion = version;
-        SQLiteDatabase db = getWritableDatabase();
-        db.execSQL("CREATE TABLE IF NOT EXISTS Version(version INTEGER NOT NULL PRIMARY KEY)");
-        Cursor c= null;
-        if (needChange) {
-            c = db.rawQuery("SELECT COUNT(version) FROM Version", null);
-            if (c.moveToFirst())
-                if (c.getInt(0) > 0)
-                    db.rawQuery("UPDATE Version SET version = '" + newVersion + "'", null).close();
-                else
-                    db.rawQuery("INSERT INTO Version VALUES(" + newVersion + ")", null).close();
-        }
-        if (c != null)
-            c.close();
     }
 
     public void changeStudent(){
@@ -185,7 +132,7 @@ public class DBHelper extends SQLiteOpenHelper {
         String arrayPatronymic [] = {
                 "Никитович", "Анатольевич", "Игоревич", "Александрович", "Русланович", "Леонидович", "Филиппович",
                 "Матвеевич", "Фёдорович", "Григорьевич", "Андреевич", "Сергеев", "Даниилович", "Дмитриевич", "Эдуардович",
-                "Радмирович", "Алексеевич", "Эльвекович", "Ярославоввич", "Васильевич", "Михаилович", "Евгеньевич", "Викторович"
+                "Радмирович", "Алексеевич", "Эльвекович", "Ярославович", "Васильевич", "Михаилович", "Евгеньевич", "Викторович"
         };
         SQLiteDatabase db = getWritableDatabase();
         Date date = new Date();
@@ -201,14 +148,6 @@ public class DBHelper extends SQLiteOpenHelper {
         cv.put("Time", date.getTime());
         db.insert("Students", null, cv);
         c.close();
-        db.close();
-    }
-
-    public void addFiveStudents(){
-        SQLiteDatabase db = getWritableDatabase();
-
-        for (int i = 0; i < 5; i++)
-            addStudent();
         db.close();
     }
 
@@ -249,7 +188,7 @@ public class DBHelper extends SQLiteOpenHelper {
         String arrayPatronymic [] = {
                 "Никитович", "Анатольевич", "Игоревич", "Александрович", "Русланович", "Леонидович", "Филиппович",
                 "Матвеевич", "Фёдорович", "Григорьевич", "Андреевич", "Сергеев", "Даниилович", "Дмитриевич", "Эдуардович",
-                "Радмирович", "Алексеевич", "Эльвекович", "Ярославоввич", "Васильевич", "Михаилович", "Евгеньевич", "Викторович"
+                "Радмирович", "Алексеевич", "Эльвекович", "Ярославович", "Васильевич", "Михаилович", "Евгеньевич", "Викторович"
         };
         SQLiteDatabase db = getWritableDatabase();
         Date date = new Date();

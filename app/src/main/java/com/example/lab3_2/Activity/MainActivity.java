@@ -1,7 +1,6 @@
 package com.example.lab3_2.Activity;
 
 import android.content.Intent;
-import android.os.PersistableBundle;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
@@ -20,18 +19,19 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         Log.i("onCreate", "MainActivity\n-------------------------------------------------------\n");
         super.onCreate(savedInstanceState);
+        if (savedInstanceState != null && savedInstanceState.getInt("DBVersion") != 0 && savedInstanceState.getInt("DBVersion") != -1)
+            DBHelper.newVersion = savedInstanceState.getInt("DBVersion");
+        if (savedInstanceState != null)
+            created = savedInstanceState.getBoolean("created");
         setContentView(R.layout.activity_main);
         Button showButton = findViewById(R.id.describeButton), showButtonOld = findViewById(R.id.describeButtonOld), changeVersionOfDB = findViewById(R.id.changeDBVersion);
-        deleteDatabase("StudentsDB");
+        if (!created)
+            deleteDatabase("StudentsDB");
         final DBHelper dbHelper = new DBHelper(getApplicationContext());
-        dbHelper.getVersionOfDB(1);
         if (savedInstanceState != null)
             created = savedInstanceState.getBoolean("created");
         if (!created) {
-            if (dbHelper.newVersion == 2)
-                dbHelper.addFiveStudents();
-            else
-                dbHelper.addFiveStudentsOld();
+            dbHelper.addFiveStudentsOld();
             created = true;
         }
         showButtonOld.setOnClickListener(new View.OnClickListener() {
@@ -83,9 +83,9 @@ public class MainActivity extends AppCompatActivity {
             public void onClick(View v) {
 
                 if (dbHelper.getNewVersion() == 2)
-                    dbHelper.setVersionOfDB(1);
+                    dbHelper.setNewVersion(1);
                 else
-                    dbHelper.setVersionOfDB(2);
+                    dbHelper.setNewVersion(2);
                 DBHelper dbhelper = new DBHelper(getApplicationContext(), dbHelper.getNewVersion());
                 Toast toast = Toast.makeText(getApplicationContext(), "Была установлена БД версии " + Integer.toString(DBHelper.newVersion), Toast.LENGTH_LONG);
                 toast.show();
@@ -98,6 +98,7 @@ public class MainActivity extends AppCompatActivity {
         Log.i("onRestoreInstanceState", "MainActivity");
         super.onRestoreInstanceState(savedInstanceState);
         created = savedInstanceState.getBoolean("created");
+        DBHelper.newVersion = savedInstanceState.getInt("DBVersion");
     }
 
     @Override
@@ -105,6 +106,7 @@ public class MainActivity extends AppCompatActivity {
         Log.i("onSaveInstanceState", "MainActivity");
         super.onSaveInstanceState(outState);
         outState.putBoolean("created", created);
+        outState.putInt("DBVersion", DBHelper.newVersion);
     }
 
     public void startShowActivityOld(){
