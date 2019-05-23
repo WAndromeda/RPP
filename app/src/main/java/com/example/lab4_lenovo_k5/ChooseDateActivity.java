@@ -22,7 +22,7 @@ public class ChooseDateActivity extends Activity {
     Intent resultValue;
     static String curDate;
 
-    final String LOG_TAG = "myLogs";
+    final String LOG_TAG = "myLogs_ChooseDA";
     public final static String WIDGET_PREF = "widget_pref";
     public final static String WIDGET_TEXT = "widget_text_";
     public final static String WIDGET_COLOR = "widget_color_";
@@ -51,13 +51,14 @@ public class ChooseDateActivity extends Activity {
 
         // отрицательный ответ
         setResult(RESULT_CANCELED, resultValue);
-
+        Date currentTime = Calendar.getInstance().getTime();
+        Log.d(LOG_TAG, "CURRENT_DATE  = " + currentTime.toString());
         setContentView(R.layout.choose_date_activity_layout);
         Button button = findViewById(R.id.choose_button);
         contextActivity = this;
         final CalendarView calendar = findViewById(R.id.calendarView);
         DateWidget.getDate(this, widgetID);
-        if (DateWidget.curDate != null && !DateWidget.curDate.equals("")){
+        if (DateWidget.plannedDate != null && !DateWidget.plannedDate.equals("")){
             Calendar calendarW = Calendar.getInstance();
             calendarW.set(Calendar.YEAR,  DateWidget.year);
             calendarW.set(Calendar.MONTH,  DateWidget.month-1);
@@ -93,7 +94,7 @@ public class ChooseDateActivity extends Activity {
                     calendar.setDate(milliTime);
                 }
                 curDate = String.valueOf(dayOfMonth) + "/" + String.valueOf(month + 1) + "/" + String.valueOf(year);
-                DateWidget.curDate = curDate;
+                DateWidget.plannedDate = curDate;
                 DateWidget.dayOfMonth = dayOfMonth;
                 DateWidget.month = month + 1;
                 DateWidget.year = year;
@@ -106,9 +107,7 @@ public class ChooseDateActivity extends Activity {
         });
         button.setOnClickListener(new View.OnClickListener() {
             @Override
-            public void onClick(View v) {
-
-                Log.d(LOG_TAG, curDate);
+            public void onClick(View v) {;
 
                 // Записываем значения с экрана в Preferences
                 SharedPreferences sp = getSharedPreferences(WIDGET_PREF, MODE_PRIVATE);
@@ -119,6 +118,7 @@ public class ChooseDateActivity extends Activity {
                 // положительный ответ
                 setResult(RESULT_OK, resultValue);
                 AppWidgetManager appWidgetManager = AppWidgetManager.getInstance(contextActivity);
+                DateWidget.startTimer(contextActivity, appWidgetManager, new int[]{widgetID});
                 DateWidget.updateWidget(contextActivity, appWidgetManager, widgetID);
                 finish();
             }

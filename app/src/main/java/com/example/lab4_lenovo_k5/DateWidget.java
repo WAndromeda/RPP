@@ -1,6 +1,5 @@
 package com.example.lab4_lenovo_k5;
 
-import android.app.AlarmManager;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
@@ -19,17 +18,18 @@ import android.widget.RemoteViews;
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.Calendar;
+import java.util.HashMap;
 import java.util.Timer;
 import java.util.TimerTask;
 
 public class DateWidget extends AppWidgetProvider {
     final static String LOG_TAG = "myLogs_DateWidget";
-    static String curDate = "";
+    static String plannedDate = "";
     static int year, month, dayOfMonth, started;
     static long days;
     static int counter = 0;
     private PendingIntent service = null;
-    private Timer myTimer = new Timer(); //Создание локального экземляра таймера для обновления
+    private static Timer myTimer = new Timer(); //Создание локального экземляра таймера для обновления
     //Context contextActivity;
 
     @Override
@@ -79,6 +79,14 @@ public class DateWidget extends AppWidgetProvider {
         appWidgetAlarm.stopAlarm();*/
     }
 
+    @Override
+    public void onReceive(Context context, Intent intent) {
+        super.onReceive(context, intent);
+        Log.e(LOG_TAG, "onReceive");
+    }
+
+
+
     /*@Override
     public void onReceive(Context context, Intent intent) {
         super.onReceive(context, intent);
@@ -95,7 +103,7 @@ public class DateWidget extends AppWidgetProvider {
         Log.d(LOG_TAG, "onReceive_End");
     }*/
 
-    private void startTimer(final Context context, final AppWidgetManager appWidgetManager, final int[] appWidgetIds) {
+    public static void startTimer(final Context context, final AppWidgetManager appWidgetManager, final int[] appWidgetIds) {
         myTimer.schedule(new TimerTask() {
             @Override
             public void run() {
@@ -110,8 +118,7 @@ public class DateWidget extends AppWidgetProvider {
     }
 
     public static void updateWidget(Context context, AppWidgetManager appWidgetManager, int widgetID) {
-        Log.d(LOG_TAG, "updateWidget " + widgetID);
-
+        Log.d(LOG_TAG, "updateWidget_ " + widgetID);
         SharedPreferences sp = context.getSharedPreferences(
                 ChooseDateActivity.WIDGET_PREF, Context.MODE_PRIVATE);
 
@@ -129,9 +136,10 @@ public class DateWidget extends AppWidgetProvider {
         }
         else
         if (days == -1){
-            widgetView.setTextViewText(R.id.textView, "СОБЫТИЕ НАСТУПИЛО = " + Integer.toString(widgetID));
+            String text = "СОБЫТИЕ НАСТУПИЛО";
+            widgetView.setTextViewText(R.id.textView, text  + " = " + Integer.toString(widgetID));
             if (started == 0) {
-                notificationEventStarted(context, widgetID);
+                notificationEventStarted(context, widgetID, text);
                 started = 1;
                 DBHelper dbHelper = new DBHelper(context);
                 dbHelper.setStarted(started, widgetID);
@@ -143,8 +151,12 @@ public class DateWidget extends AppWidgetProvider {
         }else
         if (days > 0){
             DateWidget.days = days;
+            widgetText = Long.toString(DateWidget.days);
+            Log.d(LOG_TAG, "DAYS TO WAIT = " + widgetText);
             widgetView.setTextViewText(R.id.textView, widgetText);
             counter++;
+        }else{
+            notificationEventStarted(context, widgetID, "ОШИБКА");
         }
 
 
@@ -160,7 +172,7 @@ public class DateWidget extends AppWidgetProvider {
 
         // Обновляем виджет
         appWidgetManager.updateAppWidget(widgetID, widgetView);
-        Log.d(LOG_TAG, curDate);
+        Log.d(LOG_TAG, "PLANED_DATE = " + plannedDate);
     }
 
     public static void getDate(Context context, int widgetID){
@@ -168,19 +180,20 @@ public class DateWidget extends AppWidgetProvider {
             DBHelper dbHelper = new DBHelper(context);
             Integer[] date = dbHelper.getDate(widgetID);
             if (date != null) {
-                Log.d(LOG_TAG, "ALL_RIGHT");
+                Log.d(LOG_TAG, "DATABASE = ALL_RIGHT");
                 dayOfMonth = date[0];
                 month = date[1];
                 year = date[2];
                 started = date[3];
-                curDate = dayOfMonth + "/" + month + "/" + year;
+                plannedDate = dayOfMonth + "/" + month + "/" + year;
             } else
-                Log.d(LOG_TAG, "NOOOOOOOOOOOO");
+                Log.d(LOG_TAG, "DATABASE = NOOOOOOOOOOOO");
         }
     }
 
     public static long getDaysDiff(Context context, int dayOfMonth, int month, int year){
         String date = new SimpleDateFormat("dd/MM/yyyy").format(Calendar.getInstance().getTime());
+        Log.d(LOG_TAG, "CURRENT_DATE_DATE_WIDGET = " + date);
         String[] array = date.split("/");
         if (year > Integer.valueOf(array[2])) {
             return computeDays(dayOfMonth, month, year);
@@ -215,6 +228,7 @@ public class DateWidget extends AppWidgetProvider {
 
     private static long computeDays( int dayOfMonthNew, int monthNew, int yearNew){
         long days = computeDiffer(dayOfMonthNew, monthNew, yearNew) / (24 * 60 * 60 * 1000);
+        Log.d(LOG_TAG, "DAYS_COMPUTE = " + Long.toString(days));
         return days;  // вернуть разницу в днях
     }
 
@@ -222,27 +236,27 @@ public class DateWidget extends AppWidgetProvider {
         long curLongDate =  Calendar.getInstance().getTimeInMillis();
         Calendar calendarW = Calendar.getInstance();
         calendarW.set(Calendar.YEAR, year);
-        calendarW.set(Calendar.MONTH, month);
+        calendarW.set(Calendar.MONTH, month-1);
         calendarW.set(Calendar.DAY_OF_MONTH, dayOfMonth);
         long differ =  (calendarW.getTimeInMillis() - curLongDate);
         return differ;
     }
 
-    public static void notificationEventStarted(Context context, int widgetID){
+    public static void notificationEventStarted(Context context, int widgetID, String text){
         final int NOTIFY_ID = 101;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O){
             Resources res = context.getResources();
-            NotificationChannel notificationChannel = new NotificationChannel("EventStarted", "Событие наступило", NotificationManager.IMPORTANCE_DEFAULT);
+            NotificationChannel notificationChannel = new NotificationChannel("EventStarted" + widgetID, "Событие наступило", NotificationManager.IMPORTANCE_DEFAULT);
             NotificationManager notificationManager =
                     (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
             notificationManager.createNotificationChannel(notificationChannel);
-            NotificationCompat.Builder builder = new NotificationCompat.Builder(context, "EventStarted")
+            NotificationCompat.Builder builder = new NotificationCompat.Builder(context, "EventStarted" + widgetID)
                     // обязательные настройки
                     .setSmallIcon(R.drawable.ic_launcher_background)
                     //.setContentTitle(res.getString(R.string.notifytitle)) // Заголовок уведомления
                     .setContentTitle("Напоминание")
                     //.setContentText(res.getString(R.string.notifytext))
-                    .setContentText("СОБЫТИЕ НАСТУПИЛО = " + Integer.toString(widgetID)) // Текст уведомления
+                    .setContentText(text + " = " + Integer.toString(widgetID)) // Текст уведомления
                     // необязательные настройки
                     .setLargeIcon(BitmapFactory.decodeResource(res, R.drawable.ic_launcher_background)) // большая
                     // картинка
@@ -271,7 +285,7 @@ public class DateWidget extends AppWidgetProvider {
                     //.setContentTitle(res.getString(R.string.notifytitle)) // Заголовок уведомления
                     .setContentTitle("Напоминание")
                     //.setContentText(res.getString(R.string.notifytext))
-                    .setContentText("СОБЫТИЕ НАСТУПИЛО = " + Integer.toString(widgetID)) // Текст уведомления
+                    .setContentText(text + " = " + Integer.toString(widgetID)) // Текст уведомления
                     // необязательные настройки
                     .setLargeIcon(BitmapFactory.decodeResource(res, R.drawable.ic_launcher_background)) // большая
                     // картинка

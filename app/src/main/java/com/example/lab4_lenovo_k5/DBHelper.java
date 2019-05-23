@@ -54,8 +54,10 @@ public class DBHelper extends SQLiteOpenHelper {
             date[2] = c.getInt(3);
             date[3] = c.getInt(4);
             c.close();
-        }else
+        }else {
+            c.close();
             return null;
+        }
         return date;
     }
 
